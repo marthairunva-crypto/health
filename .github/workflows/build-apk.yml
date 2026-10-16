@@ -51,14 +51,19 @@ jobs:
       run: flutter clean
       
     - name: Build APK
-      run: |
-        flutter build apk --release --verbose 2>&1 | tee build.log
-        exit ${PIPESTATUS[0]}
-      continue-on-error: true
+      run: flutter build apk --release --verbose --dart-define=FLUTTER_WEB_AUTO_DETECT=true 2>&1 | tee flutter_build.log; exit ${PIPESTATUS[0]}
+      continue-on-error: false
       
-    - name: Show last 200 lines of build log on failure
+    - name: Show build errors on failure
       if: failure()
-      run: tail -n 200 build.log || echo "No build log found"
+      run: |
+        echo "=== Last 300 lines of Flutter build log ==="
+        tail -n 300 flutter_build.log || echo "No Flutter build log"
+        echo ""
+        echo "=== Checking for Gradle errors ==="
+        if [ -f "android/app/build/outputs/logs/manifest-merger-release-report.txt" ]; then
+          cat android/app/build/outputs/logs/manifest-merger-release-report.txt
+        fi
       
     - name: List build outputs
       if: always()

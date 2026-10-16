@@ -597,7 +597,7 @@ class _NewPatientScreenState extends State<NewPatientScreen> {
               ),
             ),
           ),
-          onBeforeChange: (prev, next) {
+          onBeforeChange: (prev, next) async {
             onChanged(next);
             return true;
           },

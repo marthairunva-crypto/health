@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout code
@@ -42,7 +44,7 @@ jobs:
       run: |
         if grep -q "build_runner" pubspec.yaml; then
           echo "Running build_runner..."
-          flutter pub run build_runner build --delete-conflicting-outputs || echo "Build runner failed, continuing anyway"
+          dart run build_runner build --delete-conflicting-outputs
         else
           echo "No build_runner found, skipping..."
         fi
@@ -51,7 +53,8 @@ jobs:
       run: flutter clean
       
     - name: Build APK
-      run: flutter build apk --release --verbose 2>&1 | tee build.log
+      shell: bash
+      run: flutter build apk --release 2>&1 | tee build.log
       
     - name: Show errors on failure
       if: failure()
@@ -64,6 +67,17 @@ jobs:
         echo ""
         echo "=== Searching for 'Execution failed' ==="
         grep -n -B3 -A15 "Execution failed" build.log || echo "Pattern not found"
+        echo ""
+        echo "=== Last 100 lines of build log ==="
+        tail -n 100 build.log
+        
+    - name: Upload build log on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: build.log
+        retention-days: 7
       
     - name: List build outputs
       if: always()

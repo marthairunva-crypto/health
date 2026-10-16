@@ -40,15 +40,26 @@ jobs:
     - name: Get Flutter dependencies
       run: flutter pub get
       
-    - name: Check for build_runner
-      continue-on-error: true
+    - name: Run build_runner
       run: |
         if grep -q "build_runner" pubspec.yaml; then
           echo "Running build_runner..."
-          dart run build_runner build --delete-conflicting-outputs 2>&1 | tee build_runner.log || (echo "Build runner failed, but continuing..."; cat build_runner.log || true)
+          dart run build_runner build --delete-conflicting-outputs 2>&1 | tee build_runner.log
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "Build runner failed with errors:"
+            cat build_runner.log || true
+            exit 1
+          fi
         else
           echo "No build_runner found, skipping..."
         fi
+      
+    - name: Verify generated files
+      run: |
+        echo "=== Checking for generated files ==="
+        find lib -name "*.g.dart" -o -name "*.freezed.dart" | head -20
+        GENERATED_COUNT=$(find lib -name "*.g.dart" -o -name "*.freezed.dart" | wc -l)
+        echo "Found $GENERATED_COUNT generated files"
       
     - name: Clean build
       run: flutter clean
@@ -57,6 +68,8 @@ jobs:
       shell: bash
       run: |
         set -x
+        # Ensure build.log is created even if build fails immediately
+        touch build.log
         flutter build apk --release 2>&1 | tee build.log
         BUILD_EXIT=${PIPESTATUS[0]}
         echo "Build exit code: $BUILD_EXIT"
@@ -65,25 +78,30 @@ jobs:
     - name: Show errors on failure
       if: failure()
       run: |
-        echo "=== Searching for 'What went wrong' ==="
-        grep -n -B5 -A20 "What went wrong" build.log || echo "Pattern not found"
-        echo ""
-        echo "=== Searching for 'FAILURE' ==="
-        grep -n -B5 -A20 "FAILURE:" build.log || echo "Pattern not found"
-        echo ""
-        echo "=== Searching for 'Execution failed' ==="
-        grep -n -B3 -A15 "Execution failed" build.log || echo "Pattern not found"
-        echo ""
-        echo "=== Last 100 lines of build log ==="
-        tail -n 100 build.log
+        if [ -f build.log ]; then
+          echo "=== Searching for 'What went wrong' ==="
+          grep -n -B5 -A20 "What went wrong" build.log || echo "Pattern not found"
+          echo ""
+          echo "=== Searching for 'FAILURE' ==="
+          grep -n -B5 -A20 "FAILURE:" build.log || echo "Pattern not found"
+          echo ""
+          echo "=== Searching for 'Execution failed' ==="
+          grep -n -B3 -A15 "Execution failed" build.log || echo "Pattern not found"
+          echo ""
+          echo "=== Last 100 lines of build log ==="
+          tail -n 100 build.log
+        else
+          echo "build.log not found - build may have failed before log creation"
+        fi
         
     - name: Upload build log on failure
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.6.0
       with:
         name: build-log
         path: build.log
         retention-days: 7
+        if-no-files-found: warn
       
     - name: List build outputs
       if: always()
@@ -95,7 +113,7 @@ jobs:
       
     - name: Upload APK artifact
       if: success()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.6.0
       with:
         name: health-ai-apk
         path: build/app/outputs/flutter-apk/app-release.apk

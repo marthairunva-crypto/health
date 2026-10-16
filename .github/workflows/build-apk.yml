@@ -48,7 +48,14 @@ jobs:
       run: flutter clean
       
     - name: Build APK
-      run: flutter build apk --release --verbose
+      run: |
+        flutter build apk --release --verbose 2>&1 | tee build.log
+        exit ${PIPESTATUS[0]}
+      continue-on-error: true
+      
+    - name: Show last 200 lines of build log on failure
+      if: failure()
+      run: tail -n 200 build.log || echo "No build log found"
       
     - name: List build outputs
       if: always()

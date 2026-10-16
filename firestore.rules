@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{db}/documents {
+    
+    // Helper functions
+    function signedIn() {
+      return request.auth != null;
+    }
+    
+    function role() {
+      return request.auth.token.role;
+    }
+    
+    function isStaff() {
+      return signedIn() && (role() == 'clinician' || role() == 'admin');
+    }
+    
+    function isAdmin() {
+      return signedIn() && role() == 'admin';
+    }
+    
+    // Users collection
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // Allow users to create their own document during registration
+      allow create: if request.auth.uid == uid;
+      // Updates only via Cloud Functions
+      allow update, delete: if false;
+    }
+    
+    // Patients collection
+    match /patients/{patientId} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+      
+      // Private patient identity subcollection
+      match /private/{doc} {
+        allow read, write: if isStaff();
+      }
+    }
+    
+    // Visits collection
+    match /visits/{visitId} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    
+    // Predictions collection (mostly function-controlled)
+    match /predictions/{predictionId} {
+      allow read: if isStaff();
+      allow create, delete: if false; // Only via Cloud Functions
+      
+      // Staff can only update feedback field
+      allow update: if isStaff() 
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedback']);
+    }
+    
+    // Facility daily status
+    match /facilityDaily/{dateId} {
+      allow read, write: if isStaff();
+    }
+    
+    // Audit logs (read-only for admins)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only via Cloud Functions
+    }
+  }
+}

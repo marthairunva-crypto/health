@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "320732608084",
+    "firebase_url": "https://my-first-project-e8a6e-default-rtdb.firebaseio.com",
+    "project_id": "my-first-project-e8a6e",
+    "storage_bucket": "my-first-project-e8a6e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320732608084:android:8d1e0783610d78ed66dfc1",
+        "android_client_info": {
+          "package_name": "com.example.health_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCswOAVO_R7kMUoCCqzOidbIUKRa4yEb6I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

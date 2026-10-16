@@ -192,13 +192,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     
     return Scaffold(
       backgroundColor: _pageBg,
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: LayoutBuilder(
-          builder: (context, c) =>
-              c.maxWidth >= _wideBreakpoint ? _buildWide() : _buildNarrow(c),
-        ),
+      body: LayoutBuilder(
+        builder: (context, c) =>
+            c.maxWidth >= _wideBreakpoint ? _buildWide() : _buildNarrow(c),
       ),
     );
   }

@@ -40,26 +40,59 @@ jobs:
     - name: Get Flutter dependencies
       run: flutter pub get
       
-    - name: Run build_runner
+    - name: Show dart/flutter versions
       run: |
+        echo "=== Dart version ==="
+        dart --version
+        echo ""
+        echo "=== Flutter version ==="
+        flutter --version
+        echo ""
+        echo "=== Checking for code generation dependencies ==="
+        grep -A2 "dev_dependencies:" pubspec.yaml | head -20
+      
+    - name: Run build_runner
+      continue-on-error: true
+      id: build_runner_step
+      run: |
+        touch build_runner.log
         if grep -q "build_runner" pubspec.yaml; then
           echo "Running build_runner..."
           dart run build_runner build --delete-conflicting-outputs 2>&1 | tee build_runner.log
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "Build runner failed with errors:"
+          BUILD_RUNNER_EXIT=${PIPESTATUS[0]}
+          echo "Build runner exit code: $BUILD_RUNNER_EXIT"
+          if [ $BUILD_RUNNER_EXIT -ne 0 ]; then
+            echo "=== Build runner failed with errors ==="
             cat build_runner.log || true
-            exit 1
           fi
+          exit $BUILD_RUNNER_EXIT
         else
           echo "No build_runner found, skipping..."
         fi
       
+    - name: Upload build_runner log on failure
+      if: steps.build_runner_step.outcome == 'failure'
+      uses: actions/upload-artifact@v4.6.0
+      with:
+        name: build-runner-log
+        path: build_runner.log
+        retention-days: 7
+        if-no-files-found: warn
+      
     - name: Verify generated files
       run: |
         echo "=== Checking for generated files ==="
-        find lib -name "*.g.dart" -o -name "*.freezed.dart" | head -20
-        GENERATED_COUNT=$(find lib -name "*.g.dart" -o -name "*.freezed.dart" | wc -l)
+        find lib -name "*.g.dart" -o -name "*.freezed.dart" 2>/dev/null | head -20 || echo "No generated files found"
+        GENERATED_COUNT=$(find lib -name "*.g.dart" -o -name "*.freezed.dart" 2>/dev/null | wc -l)
         echo "Found $GENERATED_COUNT generated files"
+        if [ $GENERATED_COUNT -eq 0 ] && grep -q "build_runner" pubspec.yaml; then
+          echo "WARNING: build_runner is in pubspec but no generated files found!"
+          echo "This may cause build failures."
+          if [ "${{ steps.build_runner_step.outcome }}" == "failure" ]; then
+            echo "ERROR: Build runner failed AND no generated files exist."
+            echo "The APK build will likely fail. Check build_runner.log artifact."
+          fi
+        fi
       
     - name: Clean build
       run: flutter clean
@@ -99,7 +132,9 @@ jobs:
       uses: actions/upload-artifact@v4.6.0
       with:
         name: build-log
-        path: build.log
+        path: |
+          build.log
+          build_runner.log
         retention-days: 7
         if-no-files-found: warn
       

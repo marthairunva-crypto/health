@@ -44,7 +44,7 @@ jobs:
       run: |
         if grep -q "build_runner" pubspec.yaml; then
           echo "Running build_runner..."
-          dart run build_runner build --delete-conflicting-outputs
+          dart run build_runner build --delete-conflicting-outputs 2>&1 | tee build_runner.log || (echo "Build runner failed"; cat build_runner.log; exit 1)
         else
           echo "No build_runner found, skipping..."
         fi
@@ -54,7 +54,12 @@ jobs:
       
     - name: Build APK
       shell: bash
-      run: flutter build apk --release 2>&1 | tee build.log
+      run: |
+        set -x
+        flutter build apk --release 2>&1 | tee build.log
+        BUILD_EXIT=${PIPESTATUS[0]}
+        echo "Build exit code: $BUILD_EXIT"
+        exit $BUILD_EXIT
       
     - name: Show errors on failure
       if: failure()

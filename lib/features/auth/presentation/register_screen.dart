@@ -651,7 +651,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 maxLength: 4,
                 obscureText: _obscureConfirmPin,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onFieldSubmitted: (_) => _isLoading ? null : _handleRegister(),
+                onFieldSubmitted: (_) {
+                  // Just unfocus, don't auto-submit
+                  FocusScope.of(context).unfocus();
+                },
                 style: const TextStyle(fontSize: 18, letterSpacing: 6),
                 decoration: _decoration(
                   hint: '••••',
